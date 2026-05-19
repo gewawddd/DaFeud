@@ -28,6 +28,7 @@ export function AnswerCard({ index, answer, revealed, onReveal }: Props) {
       {}
       }
       className="relative w-full h-24 sm:h-28 md:h-32 [perspective:1200px] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/60 rounded-3xl"
+      aria-pressed={revealed}
       aria-label={
       revealed ?
       `Answer ${index + 1}: ${answer.text}, ${answer.points} points` :

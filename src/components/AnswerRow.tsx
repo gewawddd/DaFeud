@@ -54,6 +54,7 @@ export function AnswerRow({
           })
           }
           placeholder={`Answer ${index + 1}`}
+          aria-label={`Answer ${index + 1} text`}
           className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition" />
         
         <input
@@ -68,6 +69,7 @@ export function AnswerRow({
             });
           }}
           placeholder="Pts"
+          aria-label={`Answer ${index + 1} points`}
           className="w-20 sm:w-24 px-3 py-3 rounded-2xl bg-white/10 border border-white/20 text-white text-center font-led text-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition" />
         
         <button

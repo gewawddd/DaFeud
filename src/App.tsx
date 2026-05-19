@@ -22,33 +22,42 @@ export function App() {
   function handleBackToSetup() {
     setScreen('setup');
   }
-  function handleNewQuestion() {
-    clearGame();
-    setScreen('setup');
-  }
   if (!hydrated) {
     return <div className="min-h-screen w-full bg-blue-950" />;
   }
   return (
-    <div className="relative min-h-screen w-full bg-stage text-white font-body">
-      {/* Stage backdrop layers */}
-      <div className="pointer-events-none fixed inset-0 stage-spotlights" />
-      <div className="pointer-events-none fixed inset-0 stage-vignette" />
+    <div className="relative min-h-screen w-full text-white font-body">
+      <div className="rotate-overlay" role="alert" aria-live="assertive">
+        <div className="rotate-card">
+          <div className="rotate-phone" aria-hidden="true" />
+          <div className="rotate-title">Rotate device</div>
+          <div className="rotate-subtitle">This game runs in landscape.</div>
+        </div>
+      </div>
 
-      <div className="relative z-10">
-        {screen === 'landing' ?
-        <LandingScreen onEnter={() => setScreen('setup')} /> :
-        screen === 'setup' ?
-        <SetupScreen initialSurvey={survey} onStart={handleStart} /> :
-        survey ?
-        <GameBoard
-          survey={survey}
-          onBackToSetup={handleBackToSetup}
-          onNewQuestion={handleNewQuestion} /> :
+      <div className="landscape-shell">
+        <div className="landscape-frame">
+          <div className="relative h-full w-full bg-stage text-white font-body">
+            {/* Stage backdrop layers */}
+            <div className="pointer-events-none absolute inset-0 stage-spotlights" />
+            <div className="pointer-events-none absolute inset-0 stage-vignette" />
+
+            <div className="relative z-10 landscape-scroll">
+              {screen === 'landing' ?
+              <LandingScreen onEnter={() => setScreen('setup')} /> :
+              screen === 'setup' ?
+              <SetupScreen initialSurvey={survey} onStart={handleStart} /> :
+              survey ?
+              <GameBoard
+                survey={survey}
+                onBackToSetup={handleBackToSetup} /> :
 
 
-        <SetupScreen initialSurvey={null} onStart={handleStart} />
-        }
+              <SetupScreen initialSurvey={null} onStart={handleStart} />
+              }
+            </div>
+          </div>
+        </div>
       </div>
 
       <Toaster
@@ -62,7 +71,6 @@ export function App() {
             backdropFilter: 'blur(12px)'
           }
         }} />
-      
     </div>);
 
 }

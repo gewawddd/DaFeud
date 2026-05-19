@@ -1,64 +1,101 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { PlusIcon, SparklesIcon, RotateCcwIcon, PlayIcon } from 'lucide-react';
-import { Survey, Answer, genId, saveSurvey } from '../lib/storage';
+import {
+  PlusIcon,
+  SparklesIcon,
+  RotateCcwIcon,
+  PlayIcon,
+  Trash2Icon,
+  CopyIcon,
+  ChevronDownIcon
+} from 'lucide-react';
+import { Survey, Answer, Round, genId, saveSurvey } from '../lib/storage';
 import { getSampleSurvey, getEmptySurvey } from '../lib/sampleData';
 import { AnswerRow } from '../components/AnswerRow';
 type Props = {
   initialSurvey: Survey | null;
   onStart: (survey: Survey) => void;
 };
-const ANSWER_OPTIONS = [4, 6, 8, 10];
+const ANSWER_OPTIONS = [4, 6, 8, 10, 12];
+const DEFAULT_ROUNDS = 3;
+const DEFAULT_ANSWER_COUNT = 4;
+const MAX_ROUNDS = 12;
+const MAX_ANSWERS = 12;
 export function SetupScreen({ initialSurvey, onStart }: Props) {
   const [survey, setSurvey] = useState<Survey>(
-    () => initialSurvey ?? getEmptySurvey(6)
+    () => initialSurvey ?? getEmptySurvey(DEFAULT_ROUNDS, DEFAULT_ANSWER_COUNT)
+  );
+  const [expandedRoundId, setExpandedRoundId] = useState<string>(
+    () => initialSurvey?.rounds?.[0]?.id ?? ''
   );
   // Auto-save
   useEffect(() => {
     saveSurvey(survey);
   }, [survey]);
+  useEffect(() => {
+    if (!expandedRoundId && survey.rounds[0]) {
+      setExpandedRoundId(survey.rounds[0].id);
+    }
+  }, [expandedRoundId, survey.rounds]);
   const isValid = useMemo(() => {
-    if (!survey.question.trim()) return false;
-    if (survey.answers.length === 0) return false;
-    return survey.answers.every(
-      (a) => a.text.trim() !== '' && a.points !== '' && Number(a.points) > 0
-    );
+    if (survey.rounds.length === 0) return false;
+    return survey.rounds.every((round) => {
+      if (!round.question.trim()) return false;
+      if (round.answers.length === 0) return false;
+      return round.answers.every(
+        (a) => a.text.trim() !== '' && a.points !== '' && Number(a.points) > 0
+      );
+    });
   }, [survey]);
-  function updateAnswer(idx: number, next: Answer) {
-    setSurvey((s) => ({
-      ...s,
-      answers: s.answers.map((a, i) => i === idx ? next : a)
+  function normalizeRoundTitles(rounds: Round[]) {
+    return rounds.map((round, idx) => ({
+      ...round,
+      title: `Round ${idx + 1}`
     }));
   }
-  function deleteAnswer(idx: number) {
+  function updateRound(roundId: string, updater: (r: Round) => Round) {
     setSurvey((s) => ({
       ...s,
-      answers: s.answers.filter((_, i) => i !== idx),
-      answerCount: Math.max(1, s.answerCount - 1)
+      rounds: s.rounds.map((r) => r.id === roundId ? updater(r) : r)
     }));
   }
-  function addAnswer() {
-    if (survey.answers.length >= 12) {
-      toast.error('Maximum of 12 answers reached.');
+  function updateAnswer(roundId: string, idx: number, next: Answer) {
+    updateRound(roundId, (r) => ({
+      ...r,
+      answers: r.answers.map((a, i) => i === idx ? next : a)
+    }));
+  }
+  function deleteAnswer(roundId: string, idx: number) {
+    updateRound(roundId, (r) => ({
+      ...r,
+      answers: r.answers.filter((_, i) => i !== idx),
+      answerCount: Math.max(1, r.answerCount - 1)
+    }));
+  }
+  function addAnswer(roundId: string) {
+    const round = survey.rounds.find((r) => r.id === roundId);
+    if (!round) return;
+    if (round.answers.length >= MAX_ANSWERS) {
+      toast.error(`Maximum of ${MAX_ANSWERS} answers reached.`);
       return;
     }
-    setSurvey((s) => ({
-      ...s,
+    updateRound(roundId, (r) => ({
+      ...r,
       answers: [
-      ...s.answers,
+      ...r.answers,
       {
         id: genId(),
         text: '',
         points: ''
       }],
 
-      answerCount: s.answerCount + 1
+      answerCount: r.answerCount + 1
     }));
   }
-  function changeCount(count: number) {
-    setSurvey((s) => {
-      const current = s.answers;
+  function changeCount(roundId: string, count: number) {
+    updateRound(roundId, (r) => {
+      const current = r.answers;
       let next = current.slice(0, count);
       while (next.length < count) {
         next.push({
@@ -68,18 +105,93 @@ export function SetupScreen({ initialSurvey, onStart }: Props) {
         });
       }
       return {
-        ...s,
+        ...r,
         answerCount: count,
         answers: next
       };
     });
   }
+  function addRound() {
+    if (survey.rounds.length >= MAX_ROUNDS) {
+      toast.error(`Maximum of ${MAX_ROUNDS} rounds reached.`);
+      return;
+    }
+    const newRoundId = genId();
+    const newRound: Round = {
+      id: newRoundId,
+      title: 'Round',
+      question: '',
+      answerCount: DEFAULT_ANSWER_COUNT,
+      answers: Array.from({ length: DEFAULT_ANSWER_COUNT }, () => ({
+        id: genId(),
+        text: '',
+        points: ''
+      }))
+    };
+    setSurvey((s) => ({
+      ...s,
+      rounds: normalizeRoundTitles([...s.rounds, newRound])
+    }));
+    setExpandedRoundId(newRoundId);
+  }
+  function duplicateRound(roundId: string) {
+    const newRoundId = genId();
+    setSurvey((s) => {
+      const idx = s.rounds.findIndex((r) => r.id === roundId);
+      if (idx < 0) return s;
+      if (s.rounds.length >= MAX_ROUNDS) {
+        toast.error(`Maximum of ${MAX_ROUNDS} rounds reached.`);
+        return s;
+      }
+      const original = s.rounds[idx];
+      const copy: Round = {
+        ...original,
+        id: newRoundId,
+        answers: original.answers.map((a) => ({
+          ...a,
+          id: genId()
+        }))
+      };
+      const nextRounds = [...s.rounds];
+      nextRounds.splice(idx + 1, 0, copy);
+      return {
+        ...s,
+        rounds: normalizeRoundTitles(nextRounds)
+      };
+    });
+    setExpandedRoundId(newRoundId);
+  }
+  function deleteRound(roundId: string) {
+    if (survey.rounds.length <= 1) {
+      toast.error('At least 1 round is required.');
+      return;
+    }
+    setSurvey((s) => {
+      const next = normalizeRoundTitles(
+        s.rounds.filter((r) => r.id !== roundId)
+      );
+      return {
+        ...s,
+        rounds: next
+      };
+    });
+    if (expandedRoundId === roundId) {
+      setExpandedRoundId('');
+    }
+  }
+  function toggleRound(roundId: string) {
+    setExpandedRoundId(roundId);
+  }
   function loadSample() {
-    setSurvey(getSampleSurvey());
+    const next = getSampleSurvey();
+    setSurvey(next);
+    setExpandedRoundId(next.rounds[0]?.id ?? '');
     toast.success('Sample survey loaded!');
   }
   function reset() {
-    setSurvey(getEmptySurvey(6));
+    const next = getEmptySurvey(DEFAULT_ROUNDS, DEFAULT_ANSWER_COUNT);
+    setSurvey(next);
+    setExpandedRoundId(next.rounds[0]?.id ?? '');
     toast.success('Form reset.');
   }
   function start() {
@@ -90,7 +202,7 @@ export function SetupScreen({ initialSurvey, onStart }: Props) {
     onStart(survey);
   }
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden flex flex-col items-center px-4 sm:px-6 py-10 sm:py-16">
+    <div className="relative min-h-full w-full overflow-x-hidden flex flex-col items-center px-4 sm:px-6 py-10 sm:py-16">
       {/* Header */}
       <motion.header
         initial={{
@@ -128,75 +240,163 @@ export function SetupScreen({ initialSurvey, onStart }: Props) {
           duration: 0.6,
           delay: 0.15
         }}
-        className="w-full max-w-3xl relative z-10">
+        className="w-full max-w-[1400px] relative z-10">
         
         <div className="rounded-[28px] bg-white/5 backdrop-blur-xl border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 sm:p-10">
-          {/* Question */}
-          <label className="block">
-            <span className="block text-sm font-display uppercase tracking-[0.2em] text-amber-300/90 mb-2">
-              Survey Question
-            </span>
-            <input
-              type="text"
-              value={survey.question}
-              onChange={(e) =>
-              setSurvey((s) => ({
-                ...s,
-                question: e.target.value
-              }))
-              }
-              placeholder="e.g. Name something you find in every Filipino home"
-              className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-white/40 text-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition" />
-            
-          </label>
-
-          {/* Count selector */}
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <span className="text-sm font-display uppercase tracking-[0.2em] text-amber-300/90">
-              Number of answers
-            </span>
-            <div className="flex gap-2">
-              {ANSWER_OPTIONS.map((n) =>
+          {/* Rounds */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-display uppercase tracking-[0.2em] text-amber-300/90">
+                  Rounds
+                </div>
+                <div className="text-xs text-blue-100/50 mt-1">
+                  1 question per round. Default answers: {DEFAULT_ANSWER_COUNT}.
+                </div>
+              </div>
               <button
-                key={n}
                 type="button"
-                onClick={() => changeCount(n)}
-                className={`w-12 h-12 rounded-2xl font-display text-lg font-bold border-2 transition ${survey.answerCount === n ? 'bg-amber-400 border-amber-300 text-blue-950 shadow-lg shadow-amber-500/30' : 'bg-white/5 border-white/15 text-white/70 hover:bg-white/10'}`}>
+                onClick={addRound}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-medium">
                 
-                  {n}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Answers */}
-          <div className="mt-8">
-            <div className="text-sm font-display uppercase tracking-[0.2em] text-amber-300/90 mb-3">
-              Answers
-            </div>
-            <div className="space-y-1">
-              <AnimatePresence initial={false}>
-                {survey.answers.map((a, i) =>
-                <AnswerRow
-                  key={a.id}
-                  index={i}
-                  answer={a}
-                  onChange={(next) => updateAnswer(i, next)}
-                  onDelete={() => deleteAnswer(i)}
-                  canDelete={survey.answers.length > 1} />
-
-                )}
-              </AnimatePresence>
+                <PlusIcon size={16} />
+                Add Round
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={addAnswer}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-medium">
-              
-              <PlusIcon size={16} />
-              Add Answer
-            </button>
+            <div className="space-y-4">
+              {survey.rounds.map((round, index) => {
+                const expanded = round.id === expandedRoundId;
+                return (
+                  <div
+                    key={round.id}
+                    className="rounded-3xl bg-white/5 border border-white/15 overflow-hidden">
+                    
+                    <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={() => toggleRound(round.id)}
+                        className="flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 rounded-2xl">
+                        
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-blue-950 font-display text-xl font-bold flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-display uppercase tracking-[0.2em] text-amber-200/90">
+                              {round.title || `Round ${index + 1}`}
+                            </div>
+                            <div className="text-sm text-blue-100/60 truncate">
+                              {round.question || 'Add your question...'}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => duplicateRound(round.id)}
+                          className="w-10 h-10 rounded-2xl border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white transition"
+                          aria-label={`Duplicate ${round.title || `Round ${index + 1}`}`}>
+                          
+                          <CopyIcon size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteRound(round.id)}
+                          className="w-10 h-10 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200 transition"
+                          aria-label={`Delete ${round.title || `Round ${index + 1}`}`}>
+                          
+                          <Trash2Icon size={16} />
+                        </button>
+                        <ChevronDownIcon
+                          size={18}
+                          className={`text-white/60 transition ${expanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+
+                    <AnimatePresence initial={false}>
+                      {expanded ? (
+                        <motion.div
+                          key="content"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: 'easeOut' }}
+                          className="px-5 sm:px-6 pb-6">
+                          
+                          <label className="block">
+                            <span className="block text-xs font-display uppercase tracking-[0.2em] text-amber-300/90 mb-2">
+                              Survey Question
+                            </span>
+                            <input
+                              type="text"
+                              value={round.question}
+                              onChange={(e) =>
+                              updateRound(round.id, (r) => ({
+                                ...r,
+                                question: e.target.value
+                              }))
+                              }
+                              placeholder="e.g. Name something you find in every Filipino home"
+                              className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-white/40 text-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition" />
+                            
+                          </label>
+
+                          <div className="mt-5 flex flex-wrap items-center gap-3">
+                            <span className="text-xs font-display uppercase tracking-[0.2em] text-amber-300/90">
+                              Number of answers
+                            </span>
+                            <div className="flex gap-2">
+                              {ANSWER_OPTIONS.map((n) =>
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => changeCount(round.id, n)}
+                                className={`w-12 h-12 rounded-2xl font-display text-lg font-bold border-2 transition ${round.answerCount === n ? 'bg-amber-400 border-amber-300 text-blue-950 shadow-lg shadow-amber-500/30' : 'bg-white/5 border-white/15 text-white/70 hover:bg-white/10'}`}>
+                                
+                                  {n}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-6">
+                            <div className="text-xs font-display uppercase tracking-[0.2em] text-amber-300/90 mb-3">
+                              Answers
+                            </div>
+                            <div className="space-y-1">
+                              <AnimatePresence initial={false}>
+                                {round.answers.map((a, i) =>
+                                <AnswerRow
+                                  key={a.id}
+                                  index={i}
+                                  answer={a}
+                                  onChange={(next) => updateAnswer(round.id, i, next)}
+                                  onDelete={() => deleteAnswer(round.id, i)}
+                                  canDelete={round.answers.length > 1} />
+
+                                )}
+                              </AnimatePresence>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => addAnswer(round.id)}
+                              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-medium">
+                              
+                              <PlusIcon size={16} />
+                              Add Answer
+                            </button>
+                          </div>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Action buttons */}

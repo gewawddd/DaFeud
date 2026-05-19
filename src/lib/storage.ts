@@ -4,14 +4,21 @@ export type Answer = {
   points: number | '';
 };
 
-export type Survey = {
+export type Round = {
+  id: string;
+  title: string;
   question: string;
   answerCount: number;
   answers: Answer[];
 };
 
+export type Survey = {
+  rounds: Round[];
+};
+
 export type GameState = {
-  revealed: string[]; // answer ids
+  roundIndex: number;
+  revealedByRound: Record<string, string[]>; // roundId -> answer ids
 };
 
 const SURVEY_KEY = 'trbsa-feud-survey';
@@ -21,7 +28,28 @@ export function loadSurvey(): Survey | null {
   try {
     const raw = localStorage.getItem(SURVEY_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as Survey;
+    const parsed = JSON.parse(raw) as Partial<Survey> & {
+      question?: string;
+      answerCount?: number;
+      answers?: Answer[];
+    };
+    if (Array.isArray(parsed.rounds)) {
+      return parsed as Survey;
+    }
+    if (typeof parsed.question === 'string' && Array.isArray(parsed.answers)) {
+      return {
+        rounds: [
+        {
+          id: genId(),
+          title: 'Round 1',
+          question: parsed.question,
+          answerCount: parsed.answerCount ?? parsed.answers.length,
+          answers: parsed.answers
+        }]
+
+      };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -47,7 +75,13 @@ export function loadGame(): GameState | null {
   try {
     const raw = localStorage.getItem(GAME_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as GameState;
+    const parsed = JSON.parse(raw) as Partial<GameState> & {
+      revealed?: string[];
+    };
+    if (typeof parsed.roundIndex === 'number' && parsed.revealedByRound) {
+      return parsed as GameState;
+    }
+    return null;
   } catch {
     return null;
   }

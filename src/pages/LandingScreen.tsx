@@ -6,7 +6,7 @@ type Props = {
 };
 export function LandingScreen({ onEnter }: Props) {
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
+    <div className="relative min-h-full w-full flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
       {/* Subtle floating spotlights */}
       <motion.div
         aria-hidden

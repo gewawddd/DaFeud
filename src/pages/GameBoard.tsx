@@ -1,60 +1,95 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  EyeIcon,
-  RotateCcwIcon,
-  ArrowLeftIcon,
-  FileTextIcon } from
-'lucide-react';
-import {
-  Survey,
-  GameState,
-  loadGame,
-  saveGame,
-  clearGame } from
-'../lib/storage';
+import { ArrowLeftIcon, EyeIcon, RotateCcwIcon } from 'lucide-react';
+import { Survey, GameState, loadGame, saveGame, clearGame } from '../lib/storage';
 import { AnswerCard } from '../components/AnswerCard';
 import { Scoreboard } from '../components/Scoreboard';
 import { Confetti } from '../components/Confetti';
 import { SoundToggle } from '../components/SoundToggle';
+
 type Props = {
   survey: Survey;
   onBackToSetup: () => void;
-  onNewQuestion: () => void;
 };
-export function GameBoard({ survey, onBackToSetup, onNewQuestion }: Props) {
-  const [revealed, setRevealed] = useState<Set<string>>(() => {
+
+export function GameBoard({ survey, onBackToSetup }: Props) {
+  const [roundIndex, setRoundIndex] = useState(() => {
     const g = loadGame();
-    return new Set(g?.revealed ?? []);
+    return g?.roundIndex ?? 0;
   });
+  const [revealedByRound, setRevealedByRound] = useState<Record<string, string[]>>(
+    () => {
+      const g = loadGame();
+      return g?.revealedByRound ?? {};
+    }
+  );
   const [soundOn, setSoundOn] = useState(true);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    if (roundIndex >= survey.rounds.length) {
+      setRoundIndex(Math.max(0, survey.rounds.length - 1));
+    }
+  }, [roundIndex, survey.rounds.length]);
+
   useEffect(() => {
     const state: GameState = {
-      revealed: Array.from(revealed)
+      roundIndex,
+      revealedByRound
     };
     saveGame(state);
-  }, [revealed]);
-  const total = useMemo(
-    () =>
-    survey.answers.
-    filter((a) => revealed.has(a.id)).
-    reduce((sum, a) => sum + (Number(a.points) || 0), 0),
-    [survey.answers, revealed]
+  }, [roundIndex, revealedByRound]);
+
+  const safeRoundIndex = Math.min(
+    roundIndex,
+    Math.max(0, survey.rounds.length - 1)
   );
+  const currentRound = survey.rounds[safeRoundIndex];
+  if (!currentRound) {
+    return <div className="min-h-full w-full bg-blue-950" />;
+  }
+
+  const revealed = useMemo(
+    () => new Set(revealedByRound[currentRound.id] ?? []),
+    [currentRound.id, revealedByRound]
+  );
+  const questionTotal = useMemo(
+    () =>
+      currentRound.answers
+      .filter((a) => revealed.has(a.id))
+      .reduce((sum, a) => sum + (Number(a.points) || 0), 0),
+    [currentRound.answers, revealed]
+  );
+  const roundTotal = questionTotal;
+  const grandTotal = useMemo(() => {
+    const byId = revealedByRound;
+    return survey.rounds.reduce((sum, round) => {
+      const ids = new Set(byId[round.id] ?? []);
+      return (
+        sum +
+        round.answers
+        .filter((a) => ids.has(a.id))
+        .reduce((inner, a) => inner + (Number(a.points) || 0), 0)
+      );
+    }, 0);
+  }, [survey.rounds, revealedByRound]);
+
   const allRevealed =
-  survey.answers.length > 0 && revealed.size === survey.answers.length;
+    currentRound.answers.length > 0 &&
+    revealed.size === currentRound.answers.length;
+  const canAdvance = allRevealed && safeRoundIndex < survey.rounds.length - 1;
+
   function playDing() {
     if (!soundOn) return;
     try {
       if (!audioCtxRef.current) {
         const Ctx =
-        window.AudioContext ||
-        (
-        window as unknown as {
-          webkitAudioContext: typeof AudioContext;
-        }).
-        webkitAudioContext;
+          window.AudioContext ||
+          (
+            window as unknown as {
+              webkitAudioContext: typeof AudioContext;
+            }
+          ).webkitAudioContext;
         audioCtxRef.current = new Ctx();
       }
       const ctx = audioCtxRef.current;
@@ -72,44 +107,69 @@ export function GameBoard({ survey, onBackToSetup, onNewQuestion }: Props) {
       osc.start(now);
       osc.stop(now + 0.55);
     } catch {
-
       // ignore
-    }}
+    }
+  }
+
   function reveal(id: string) {
     if (revealed.has(id)) return;
-    setRevealed((s) => {
-      const next = new Set(s);
-      next.add(id);
-      return next;
+    setRevealedByRound((s) => {
+      const ids = new Set(s[currentRound.id] ?? []);
+      ids.add(id);
+      return {
+        ...s,
+        [currentRound.id]: Array.from(ids)
+      };
     });
     playDing();
   }
+
   function revealAll() {
     let i = 0;
-    survey.answers.forEach((a) => {
+    const roundId = currentRound.id;
+    currentRound.answers.forEach((a) => {
       if (revealed.has(a.id)) return;
       setTimeout(() => {
-        setRevealed((s) => {
-          if (s.has(a.id)) return s;
-          const next = new Set(s);
-          next.add(a.id);
-          return next;
+        setRevealedByRound((s) => {
+          const ids = new Set(s[roundId] ?? []);
+          if (ids.has(a.id)) return s;
+          ids.add(a.id);
+          return {
+            ...s,
+            [roundId]: Array.from(ids)
+          };
         });
         playDing();
       }, i * 280);
       i++;
     });
   }
+
   function resetGame() {
-    setRevealed(new Set());
+    setRevealedByRound({});
+    setRoundIndex(0);
     clearGame();
   }
+
+  function goToRound(nextIndex: number) {
+    setRoundIndex(nextIndex);
+  }
+
+  const roundProgress =
+    survey.rounds.length === 0
+      ? 0
+      : (safeRoundIndex + 1) / survey.rounds.length;
+  const answerProgress =
+    currentRound.answers.length === 0
+      ? 0
+      : revealed.size / currentRound.answers.length;
+
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12">
+    <div className="relative min-h-full w-full overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12">
       <Confetti active={allRevealed} />
 
       {/* Top controls */}
-      <div className="relative z-10 max-w-6xl mx-auto flex items-center justify-between gap-3 mb-8">
+      <div className="relative z-10 max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3 mb-8">
         <button
           type="button"
           onClick={onBackToSetup}
@@ -118,7 +178,24 @@ export function GameBoard({ survey, onBackToSetup, onNewQuestion }: Props) {
           <ArrowLeftIcon size={16} />
           <span className="hidden sm:inline">Back to Setup</span>
         </button>
-        <SoundToggle enabled={soundOn} onToggle={() => setSoundOn((v) => !v)} />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="text-xs font-display uppercase tracking-[0.2em] text-amber-300/70 hidden sm:block">
+            Round
+          </div>
+          <select
+            value={safeRoundIndex}
+            onChange={(e) => goToRound(Number(e.target.value))}
+            disabled={!allRevealed}
+            aria-label="Select round"
+            className="px-3 py-2 rounded-2xl bg-white/10 border border-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-40 disabled:cursor-not-allowed">
+            {survey.rounds.map((round, idx) => (
+              <option key={round.id} value={idx}>
+                {round.title || `Round ${idx + 1}`}
+              </option>
+            ))}
+          </select>
+          <SoundToggle enabled={soundOn} onToggle={() => setSoundOn((v) => !v)} />
+        </div>
       </div>
 
       {/* Title */}
@@ -156,52 +233,75 @@ export function GameBoard({ survey, onBackToSetup, onNewQuestion }: Props) {
           duration: 0.6,
           delay: 0.3
         }}
-        className="relative z-10 max-w-4xl mx-auto mb-8 sm:mb-10">
+        className="relative z-10 max-w-[1400px] mx-auto mb-8 sm:mb-10">
         
         <div className="rounded-3xl bg-blue-950/70 backdrop-blur-md border-2 border-amber-400/40 shadow-[0_0_50px_rgba(251,191,36,0.25),inset_0_1px_0_rgba(255,255,255,0.1)] px-6 py-6 sm:px-10 sm:py-8 text-center">
           <div className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-amber-300/80 font-display mb-3">
-            Survey Says...
+            {currentRound.title || `Round ${safeRoundIndex + 1}`}
           </div>
           <p className="text-white text-xl sm:text-2xl md:text-3xl font-display tracking-wide leading-snug">
-            {survey.question}
+            {currentRound.question}
           </p>
         </div>
       </motion.div>
 
+      <div className="relative z-10 max-w-[1400px] mx-auto mb-6 sm:mb-8">
+        <div className="rounded-2xl bg-white/5 border border-white/15 px-5 sm:px-7 py-4">
+          <div className="flex items-center justify-between text-[11px] sm:text-xs uppercase tracking-[0.2em] text-amber-200/80 font-display">
+            <span>Round {safeRoundIndex + 1} of {survey.rounds.length}</span>
+            <span>Answers {revealed.size}/{currentRound.answers.length}</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-300 to-amber-500"
+                style={{ width: `${Math.round(roundProgress * 100)}%` }} />
+            </div>
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-300 to-emerald-500"
+                style={{ width: `${Math.round(answerProgress * 100)}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Scoreboard */}
       <div className="relative z-10 flex justify-center mb-8 sm:mb-10">
         <Scoreboard
-          total={total}
+          questionTotal={questionTotal}
+          roundTotal={roundTotal}
+          grandTotal={grandTotal}
           revealed={revealed.size}
-          totalAnswers={survey.answers.length} />
+          totalAnswers={currentRound.answers.length} />
         
       </div>
 
       {/* Answer board */}
-      <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-        {survey.answers.map((a, i) =>
-        <AnswerCard
-          key={a.id}
-          index={i}
-          answer={a}
-          revealed={revealed.has(a.id)}
-          onReveal={() => reveal(a.id)} />
-
-        )}
+      <div className="relative z-10 max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+        {currentRound.answers.map((a, i) => (
+          <AnswerCard
+            key={a.id}
+            index={i}
+            answer={a}
+            revealed={revealed.has(a.id)}
+            onReveal={() => reveal(a.id)} />
+        ))}
       </div>
 
       {/* Controls */}
-      <div className="relative z-10 max-w-5xl mx-auto mt-10 sm:mt-12 flex flex-wrap justify-center gap-3">
+      <div className="relative z-10 max-w-[1600px] mx-auto mt-10 sm:mt-12 flex flex-wrap justify-center gap-3">
         <motion.button
           type="button"
           onClick={revealAll}
+          disabled={allRevealed}
           whileHover={{
             scale: 1.04
           }}
           whileTap={{
             scale: 0.96
           }}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 text-blue-950 font-display font-bold tracking-wide border-2 border-amber-200 shadow-lg shadow-amber-500/30">
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 text-blue-950 font-display font-bold tracking-wide border-2 border-amber-200 shadow-lg shadow-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
           
           <EyeIcon size={18} />
           Reveal All
@@ -216,13 +316,13 @@ export function GameBoard({ survey, onBackToSetup, onNewQuestion }: Props) {
         </button>
         <button
           type="button"
-          onClick={onNewQuestion}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition font-medium backdrop-blur-md">
+          onClick={() => goToRound(safeRoundIndex + 1)}
+          disabled={!canAdvance}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition font-medium backdrop-blur-md disabled:opacity-40 disabled:cursor-not-allowed">
           
-          <FileTextIcon size={16} />
-          New Question
+          Next Round
         </button>
       </div>
-    </div>);
-
+    </div>
+  );
 }

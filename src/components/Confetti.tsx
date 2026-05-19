@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 type Props = {
   active: boolean;
 };
 const COLORS = ['#fbbf24', '#f59e0b', '#f97316', '#fde047', '#fff', '#60a5fa'];
 export function Confetti({ active }: Props) {
+  const reduceMotion = useReducedMotion();
   const particles = useMemo(
     () =>
     Array.from(
@@ -24,7 +25,7 @@ export function Confetti({ active }: Props) {
     ),
     []
   );
-  if (!active) return null;
+  if (!active || reduceMotion) return null;
   return (
     <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
       {particles.map((p) =>
