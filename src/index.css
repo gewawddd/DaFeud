@@ -1,0 +1,66 @@
+/* @import url() FONT IMPORTS MUST ALWAYS BE AT THE VERY TOP OF THIS FILE, ABOVE THE TAILWIND IMPORTS — DO NOT DELETE THIS COMMENT */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600&display=swap');
+
+/* CRITICAL: THE FOLLOWING TAILWIND IMPORTS MUST NEVER BE DELETED OR REORDERED — DO NOT DELETE THIS COMMENT */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* END TAILWIND IMPORTS — ALL OTHER CSS MUST GO BELOW THIS LINE */
+
+html, body, #root {
+  height: 100%;
+}
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #050b25;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+.font-display {
+  font-family: 'Bebas Neue', 'Oswald', sans-serif;
+  letter-spacing: 0.02em;
+}
+.font-body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.font-led {
+  font-family: 'Orbitron', 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+/* Stage backdrop */
+.bg-stage {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, #1e3a8a 0%, #0a1e54 35%, #050b25 75%, #020617 100%);
+}
+.stage-spotlights {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(251, 191, 36, 0.18), transparent 35%),
+    radial-gradient(circle at 85% 15%, rgba(249, 115, 22, 0.15), transparent 38%),
+    radial-gradient(circle at 50% 110%, rgba(59, 130, 246, 0.25), transparent 50%);
+  mix-blend-mode: screen;
+}
+.stage-vignette {
+  background: radial-gradient(ellipse 100% 80% at 50% 50%, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
+}
+/* Glows */
+.title-glow {
+  filter:
+    drop-shadow(0 0 18px rgba(251, 191, 36, 0.55))
+    drop-shadow(0 4px 24px rgba(249, 115, 22, 0.35));
+}
+.led-glow {
+  text-shadow:
+    0 0 8px rgba(251, 191, 36, 0.7),
+    0 0 22px rgba(251, 191, 36, 0.45);
+}
+/* Hide number input arrows */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
