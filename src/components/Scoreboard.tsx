@@ -21,7 +21,7 @@ export function Scoreboard({
       
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
         <div>
-          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1">
+          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1 w-[8ch] mx-auto text-center">
             Question
           </div>
           <motion.div
@@ -35,7 +35,7 @@ export function Scoreboard({
           </motion.div>
         </div>
         <div>
-          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1">
+          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1 w-[8ch] mx-auto text-center">
             Round
           </div>
           <motion.div
@@ -49,7 +49,7 @@ export function Scoreboard({
           </motion.div>
         </div>
         <div>
-          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1">
+          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1 w-[8ch] mx-auto text-center">
             Total
           </div>
           <motion.div
@@ -63,10 +63,10 @@ export function Scoreboard({
           </motion.div>
         </div>
         <div>
-          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1">
+          <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-amber-300/80 font-display mb-1 w-[8ch] mx-auto text-center">
             Revealed
           </div>
-          <div className="font-led text-2xl sm:text-3xl text-amber-300/90">
+          <div className="font-led text-2xl sm:text-3xl text-amber-300/90 tabular-nums w-[5ch] mx-auto text-center">
             {revealed}/{totalAnswers}
           </div>
         </div>
