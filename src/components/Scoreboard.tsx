@@ -29,7 +29,7 @@ export function Scoreboard({
             initial={{ scale: 1.2, color: '#fde047' }}
             animate={{ scale: 1, color: '#fbbf24' }}
             transition={{ duration: 0.35 }}
-            className="font-led text-3xl sm:text-4xl led-glow">
+            className="font-led text-3xl sm:text-4xl led-glow tabular-nums w-[3ch] mx-auto text-center">
             
             {String(questionTotal).padStart(3, '0')}
           </motion.div>
@@ -43,7 +43,7 @@ export function Scoreboard({
             initial={{ scale: 1.2, color: '#fde047' }}
             animate={{ scale: 1, color: '#fbbf24' }}
             transition={{ duration: 0.35 }}
-            className="font-led text-3xl sm:text-4xl led-glow">
+            className="font-led text-3xl sm:text-4xl led-glow tabular-nums w-[3ch] mx-auto text-center">
             
             {String(roundTotal).padStart(3, '0')}
           </motion.div>
@@ -57,7 +57,7 @@ export function Scoreboard({
             initial={{ scale: 1.2, color: '#fde047' }}
             animate={{ scale: 1, color: '#fbbf24' }}
             transition={{ duration: 0.35 }}
-            className="font-led text-3xl sm:text-4xl led-glow">
+            className="font-led text-3xl sm:text-4xl led-glow tabular-nums w-[3ch] mx-auto text-center">
             
             {String(grandTotal).padStart(3, '0')}
           </motion.div>
