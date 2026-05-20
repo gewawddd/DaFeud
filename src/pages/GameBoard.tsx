@@ -53,14 +53,7 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
     () => new Set(revealedByRound[currentRound.id] ?? []),
     [currentRound.id, revealedByRound]
   );
-  const questionTotal = useMemo(
-    () =>
-      currentRound.answers
-      .filter((a) => revealed.has(a.id))
-      .reduce((sum, a) => sum + (Number(a.points) || 0), 0),
-    [currentRound.answers, revealed]
-  );
-  const roundTotal = questionTotal;
+  const roundTotal = safeRoundIndex + 1;
   const grandTotal = useMemo(() => {
     const byId = revealedByRound;
     return survey.rounds.reduce((sum, round) => {
@@ -155,15 +148,6 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
     setRoundIndex(nextIndex);
   }
 
-  const roundProgress =
-    survey.rounds.length === 0
-      ? 0
-      : (safeRoundIndex + 1) / survey.rounds.length;
-  const answerProgress =
-    currentRound.answers.length === 0
-      ? 0
-      : revealed.size / currentRound.answers.length;
-
   return (
     <div className="relative min-h-full w-full overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12">
       <Confetti active={allRevealed} />
@@ -245,31 +229,9 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
         </div>
       </motion.div>
 
-      <div className="relative z-10 max-w-[1400px] mx-auto mb-6 sm:mb-8">
-        <div className="rounded-2xl bg-white/5 border border-white/15 px-5 sm:px-7 py-4">
-          <div className="flex items-center justify-between text-[11px] sm:text-xs uppercase tracking-[0.2em] text-amber-200/80 font-display">
-            <span>Round {safeRoundIndex + 1} of {survey.rounds.length}</span>
-            <span>Answers {revealed.size}/{currentRound.answers.length}</span>
-          </div>
-          <div className="mt-3 space-y-2">
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-300 to-amber-500"
-                style={{ width: `${Math.round(roundProgress * 100)}%` }} />
-            </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-300 to-emerald-500"
-                style={{ width: `${Math.round(answerProgress * 100)}%` }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Scoreboard */}
       <div className="relative z-10 flex justify-center mb-8 sm:mb-10">
         <Scoreboard
-          questionTotal={questionTotal}
           roundTotal={roundTotal}
           grandTotal={grandTotal}
           revealed={revealed.size}
