@@ -24,7 +24,10 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
     }
   );
   const [soundOn, setSoundOn] = useState(true);
+  const [wrongModalOpen, setWrongModalOpen] = useState(false);
+  const [wrongModalToken, setWrongModalToken] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const wrongModalTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (roundIndex >= survey.rounds.length) {
@@ -39,6 +42,22 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
     };
     saveGame(state);
   }, [roundIndex, revealedByRound]);
+
+  useEffect(() => {
+    if (!wrongModalOpen) return;
+    if (wrongModalTimerRef.current) {
+      window.clearTimeout(wrongModalTimerRef.current);
+    }
+    wrongModalTimerRef.current = window.setTimeout(() => {
+      setWrongModalOpen(false);
+    }, 5000);
+    return () => {
+      if (wrongModalTimerRef.current) {
+        window.clearTimeout(wrongModalTimerRef.current);
+        wrongModalTimerRef.current = null;
+      }
+    };
+  }, [wrongModalOpen, wrongModalToken]);
 
   const safeRoundIndex = Math.min(
     roundIndex,
@@ -148,9 +167,34 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
     setRoundIndex(nextIndex);
   }
 
+  function triggerWrongAnswer() {
+    setWrongModalOpen(true);
+    setWrongModalToken((n) => n + 1);
+  }
+
   return (
     <div className="relative min-h-full w-full overflow-x-hidden px-4 sm:px-6 py-8 sm:py-12">
       <Confetti active={allRevealed} />
+
+      {wrongModalOpen ? (
+        <div className="fixed inset-0 z-20 flex items-center justify-center bg-red-950/80 backdrop-blur-sm">
+          <motion.div
+            initial={{
+              scale: 0.85,
+              opacity: 0
+            }}
+            animate={{
+              scale: 1,
+              opacity: 1
+            }}
+            transition={{
+              duration: 0.2
+            }}
+            className="text-[28vw] sm:text-[22vw] leading-none font-display font-bold text-red-400 drop-shadow-[0_0_30px_rgba(248,113,113,0.7)]">
+            X
+          </motion.div>
+        </div>
+      ) : null}
 
       {/* Top controls */}
       <div className="relative z-10 max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3 mb-8">
@@ -253,6 +297,18 @@ export function GameBoard({ survey, onBackToSetup }: Props) {
 
       {/* Controls */}
       <div className="relative z-10 max-w-[1600px] mx-auto mt-10 sm:mt-12 flex flex-wrap justify-center gap-3">
+        <motion.button
+          type="button"
+          onClick={triggerWrongAnswer}
+          whileHover={{
+            scale: 1.04
+          }}
+          whileTap={{
+            scale: 0.96
+          }}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition font-medium backdrop-blur-md">
+          Wrong Answer
+        </motion.button>
         <motion.button
           type="button"
           onClick={revealAll}
